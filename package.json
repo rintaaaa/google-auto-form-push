@@ -1,0 +1,32 @@
+{
+  "name": "google-form-auto-push",
+  "version": "1.0.0",
+  "description": "Local Playwright RPA server for submitting Google Forms from Google Sheets",
+  "main": "server.js",
+  "bin": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build:win": "pkg . --targets node22-win-x64 --output dist/google-form-rpa.exe",
+    "build:mac": "pkg . --targets node22-macos-arm64 --output dist/google-form-rpa-mac-arm64",
+    "build:mac:x64": "pkg . --targets node22-macos-x64 --output dist/google-form-rpa-mac-x64"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "googleapis": "^171.4.0",
+    "playwright": "1.60.0"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.19.0"
+  },
+  "pkg": {
+    "scripts": [
+      "server.js"
+    ],
+    "assets": [
+      "node_modules/playwright-core/browsers.json"
+    ]
+  }
+}

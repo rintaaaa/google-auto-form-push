@@ -1,0 +1,292 @@
+<div style="font-family: sans-serif; padding: 12px;">
+    <h3 id="panelTitle"></h3>
+
+    <div id="setupPanel" style="display: none;">
+        <button id="healthBtn">疎通確認</button>
+
+        <hr>
+
+        <button id="loginBtn">ログイン用ブラウザを開く</button>
+        <button id="closeLoginBtn">ログイン用ブラウザを閉じる</button>
+    </div>
+
+    <div id="sendPanel" style="display: none;">
+        <p style="font-size: 13px; color: #555; line-height: 1.6;">
+            送信したい行を選択してから、下のボタンを押してください。<br>
+            複数行を選択すると、上から順番に送信します。
+        </p>
+
+        <button id="fillFormBtn" style="
+        width: 100%;
+        padding: 20px 12px;
+        font-size: 18px;
+        font-weight: bold;
+        border-radius: 8px;
+        border: 1px solid #6d3fc8;
+        background: #7e57c2;
+        color: white;
+        cursor: pointer;
+        margin-top: 8px;
+      ">
+            選択行をフォーム送信
+        </button>
+    </div>
+
+    <hr>
+
+    <pre id="result" style="
+      white-space: pre-wrap;
+      margin-top: 12px;
+      padding: 8px;
+      background: #f7f7f7;
+      border: 1px solid #ddd;
+      min-height: 120px;
+      font-size: 12px;
+    ">loading...</pre>
+</div>
+
+<script>
+    (function () {
+        const PANEL_MODE = '<?= panelMode ?>';
+        const PANEL_TITLE = '<?= panelTitle ?>';
+
+        const LOCAL_RPA_BASE_URL = 'http://localhost:8181';
+        const API_KEY = 'test';
+
+        function show(text) {
+            const result = document.getElementById('result');
+            result.textContent = text;
+        }
+
+        function initializePanel() {
+            document.getElementById('panelTitle').textContent = PANEL_TITLE;
+
+            const setupPanel = document.getElementById('setupPanel');
+            const sendPanel = document.getElementById('sendPanel');
+
+            if (PANEL_MODE === 'setup') {
+                setupPanel.style.display = 'block';
+                sendPanel.style.display = 'none';
+            }
+
+            if (PANEL_MODE === 'send') {
+                setupPanel.style.display = 'none';
+                sendPanel.style.display = 'block';
+            }
+        }
+
+        async function checkHealth() {
+            show('疎通確認中...');
+
+            try {
+                const res = await fetch(LOCAL_RPA_BASE_URL + '/health', {
+                    method: 'GET'
+                });
+
+                const text = await res.text();
+
+                if (res.ok) {
+                    show('疎通確認OK\n\n' + text);
+                } else {
+                    show('疎通確認NG\nstatus: ' + res.status + '\n\n' + text);
+                }
+            } catch (e) {
+                show(
+                    '疎通確認NG\n\n' +
+                    'ローカルRPAサーバが起動していない可能性があります。\n\n' +
+                    '確認コマンド:\n' +
+                    'curl http://localhost:8181/health\n\n' +
+                    '起動コマンド:\n' +
+                    'node server.js\n\n' +
+                    'pm2利用時:\n' +
+                    'pm2 start server.js --name google-form-rpa\n\n' +
+                    '詳細:\n' +
+                    e.name + '\n' +
+                    e.message
+                );
+            }
+        }
+
+        async function openLogin() {
+            show('ログイン用ブラウザを開いています...');
+
+            try {
+                const res = await fetch(LOCAL_RPA_BASE_URL + '/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': API_KEY
+                    },
+                    body: JSON.stringify({
+                        url: 'https://accounts.google.com/'
+                    })
+                });
+
+                const text = await res.text();
+
+                show('status: ' + res.status + '\n\n' + text);
+            } catch (e) {
+                show(
+                    'ログイン用ブラウザを開けませんでした。\n\n' +
+                    e.name + '\n' +
+                    e.message
+                );
+            }
+        }
+
+        async function closeLogin() {
+            show('ログイン用ブラウザを閉じています...');
+
+            try {
+                const res = await fetch(LOCAL_RPA_BASE_URL + '/close-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': API_KEY
+                    }
+                });
+
+                const text = await res.text();
+
+                show('status: ' + res.status + '\n\n' + text);
+            } catch (e) {
+                show(
+                    'ログイン用ブラウザを閉じられませんでした。\n\n' +
+                    e.name + '\n' +
+                    e.message
+                );
+            }
+        }
+
+        function sendSelectedRow() {
+            show('選択行のデータを取得しています...');
+
+            google.script.run
+                .withSuccessHandler(async function (payloads) {
+                    show('送信対象: ' + payloads.length + '件\n\n送信開始...');
+
+                    for (const payload of payloads) {
+                        google.script.run.updateRowResult(
+                            payload.rowNumber,
+                            'RUNNING',
+                            '送信待機中'
+                        );
+                    }
+
+                    try {
+                        const res = await fetch(LOCAL_RPA_BASE_URL + '/fill-forms', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-api-key': API_KEY
+                            },
+                            body: JSON.stringify({
+                                payloads: payloads
+                            })
+                        });
+
+                        const text = await res.text();
+
+                        let json = null;
+
+                        try {
+                            json = JSON.parse(text);
+                        } catch (e) { }
+
+                        if (!json || !Array.isArray(json.results)) {
+                            show('送信結果の解析に失敗しました。\n\nstatus: ' + res.status + '\n\n' + text);
+
+                            for (const payload of payloads) {
+                                google.script.run.updateRowResult(
+                                    payload.rowNumber,
+                                    'ERROR',
+                                    text
+                                );
+                            }
+
+                            return;
+                        }
+
+                        for (const result of json.results) {
+                            if (result.ok) {
+                                google.script.run.updateRowResult(
+                                    result.rowNumber,
+                                    'DONE',
+                                    result.message || 'form submitted'
+                                );
+                            } else {
+                                google.script.run.updateRowResult(
+                                    result.rowNumber,
+                                    'ERROR',
+                                    result.error || 'Unknown error'
+                                );
+                            }
+                        }
+
+                        show(
+                            '完了: ' +
+                            json.successCount +
+                            '件成功 / ' +
+                            json.errorCount +
+                            '件失敗'
+                        );
+                    } catch (e) {
+                        show(
+                            '送信に失敗しました。\n\n' +
+                            e.name + '\n' +
+                            e.message
+                        );
+
+                        for (const payload of payloads) {
+                            google.script.run.updateRowResult(
+                                payload.rowNumber,
+                                'ERROR',
+                                e.message
+                            );
+                        }
+                    }
+                })
+                .withFailureHandler(function (error) {
+                    show('GAS ERROR:\n' + error.message);
+                })
+                .getSelectedRowsPayloads();
+        }
+
+        function bindEvents() {
+            const healthBtn = document.getElementById('healthBtn');
+            const loginBtn = document.getElementById('loginBtn');
+            const closeLoginBtn = document.getElementById('closeLoginBtn');
+            const fillFormBtn = document.getElementById('fillFormBtn');
+
+            if (healthBtn) {
+                healthBtn.addEventListener('click', checkHealth);
+            }
+
+            if (loginBtn) {
+                loginBtn.addEventListener('click', openLogin);
+            }
+
+            if (closeLoginBtn) {
+                closeLoginBtn.addEventListener('click', closeLogin);
+            }
+
+            if (fillFormBtn) {
+                fillFormBtn.addEventListener('click', sendSelectedRow);
+            }
+
+            show('ready: ' + PANEL_TITLE + '\n' + new Date().toISOString());
+        }
+
+        window.addEventListener('error', function (event) {
+            show(
+                'WINDOW ERROR:\n' +
+                event.message +
+                '\nline: ' + event.lineno +
+                '\ncol: ' + event.colno
+            );
+        });
+
+        initializePanel();
+        bindEvents();
+    })();
+</script>
