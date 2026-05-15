@@ -65,6 +65,20 @@ function getSheetNameFromArgsOrConfig(config) {
     return '';
 }
 
+function getDryRunFromArgsOrConfig(config) {
+    if (process.argv.includes('--dry-run')) {
+        return true;
+    }
+
+    return Boolean(config.dryRun);
+}
+
+function getFieldValue(payload, fieldName) {
+    const field = (payload.fields || []).find(item => item.name === fieldName);
+
+    return field ? String(field.value || '') : '';
+}
+
 async function getGasJsonByPage(context, config, action, extraParams = {}) {
     const page = await context.newPage();
 
@@ -370,7 +384,8 @@ async function main() {
 
     const runOptions = {
         targetDate: getTargetDateFromArgsOrConfig(config),
-        sheetName: getSheetNameFromArgsOrConfig(config)
+        sheetName: getSheetNameFromArgsOrConfig(config),
+        dryRun: getDryRunFromArgsOrConfig(config)
     };
 
     if (runOptions.targetDate) {
@@ -379,6 +394,10 @@ async function main() {
 
     if (runOptions.sheetName) {
         console.log(`Export sheet name: ${runOptions.sheetName}`);
+    }
+
+    if (runOptions.dryRun) {
+        console.log('Mode: DRY RUN');
     }
 
     const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
@@ -408,6 +427,25 @@ async function main() {
 
         if (payloads.length === 0) {
             console.log('No target rows to send.');
+            return;
+        }
+
+        if (runOptions.dryRun) {
+            console.log('');
+            console.log('Dry run target rows:');
+
+            payloads.forEach((payload, index) => {
+                const name = getFieldValue(payload, 'name');
+                const url = getFieldValue(payload, 'url');
+                const phone = getFieldValue(payload, 'phone');
+
+                console.log(
+                    `${index + 1}. sheet=${payload.sheetName}, row=${payload.rowNumber}, name=${name}, phone=${phone}, url=${url}`
+                );
+            });
+
+            console.log('');
+            console.log(`Dry run completed. targetCount=${payloads.length}`);
             return;
         }
 

@@ -1,4 +1,5 @@
 {
-    "webAppUrl": "https://script.google.com/macros/s/sample/exec",
-    "secret": "google-form-rpa-2026-local-secret"
+    "webAppUrl": "https://script.google.com/macros/s/REPLACE_WITH_YOUR_WEB_APP_ID/exec",
+    "secret": "replace-with-your-api-secret",
+    "dryRun": false
 }

@@ -50,7 +50,7 @@
         const PANEL_MODE = '<?= panelMode ?>';
         const PANEL_TITLE = '<?= panelTitle ?>';
 
-        const LOCAL_RPA_BASE_URL = 'http://localhost:8181';
+        const LOCAL_RPA_BASE_URL = 'http://localhost:8006';
         const API_KEY = 'test';
 
         function show(text) {
@@ -95,7 +95,7 @@
                     '疎通確認NG\n\n' +
                     'ローカルRPAサーバが起動していない可能性があります。\n\n' +
                     '確認コマンド:\n' +
-                    'curl http://localhost:8181/health\n\n' +
+                    'curl http://localhost:8006/health\n\n' +
                     '起動コマンド:\n' +
                     'node server.js\n\n' +
                     'pm2利用時:\n' +

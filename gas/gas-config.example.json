@@ -1,0 +1,13 @@
+{
+    "apiSecret": "replace-me",
+    "sourceSpreadsheetId": "replace-me",
+    "sourceSheetName": "work",
+    "destSpreadsheetId": "replace-me",
+    "templateSheetName": "template",
+    "formUrl": "https://docs.google.com/forms/d/e/replace-me/viewform",
+    "formPrefillEntries": {
+        "name": "entry.111111111",
+        "url": "entry.222222222",
+        "phone": "entry.333333333"
+    }
+}

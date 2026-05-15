@@ -1,6 +1,8 @@
 node_modules/
+dist/
 user-data/
 .DS_Store
 npm-debug.log*
 credentials.json
 token.json
+gas/gas-config.json

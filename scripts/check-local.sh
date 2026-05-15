@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-URL="http://localhost:8181/health"
+URL="http://localhost:8006/health"
 
 echo "==> Checking local RPA server..."
 echo "$URL"
