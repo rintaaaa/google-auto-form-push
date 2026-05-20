@@ -16,7 +16,7 @@ const AUTO_FORM_URL = "https://docs.google.com/forms/d/e/REPLACE_WITH_YOUR_FORM_
 
 // TODO: Google Form の「事前入力したリンクを取得」から実際の entry ID に置き換えてください。
 // Form のテキストボックス順:
-// 1. 代表名
+// 1. 案件名
 // 2. URL
 // 3. 電話番号
 const FORM_PREFILL_ENTRIES = {
@@ -41,7 +41,6 @@ const SOURCE_HEADERS = {
     date: '日付',
     caseId: '案件ID',
     caseName: '案件名',
-    name: '代表名',
     email: 'メールアドレス',
     phone: '電話番号',
     hp: 'HP',
@@ -54,7 +53,6 @@ const DEST_HEADERS = {
     date: '日付',
     caseId: '案件ID',
     caseName: '案件名',
-    name: '代表名',
     email: 'メールアドレス',
     phone: '電話番号',
     hp: 'HP',
@@ -66,11 +64,11 @@ const DEST_HEADERS = {
     logMessage: 'logMessage'
 };
 
-// 案件ID / 案件名 は template に存在する場合だけ出力する optional ヘッダー。
-// そのため、ここでは必須にしない。
+// 案件ID は template に存在する場合だけ出力する optional ヘッダー。
+// 案件名 は送信に使うので必須。
 const DEST_REQUIRED_HEADERS = [
     DEST_HEADERS.date,
-    DEST_HEADERS.name,
+    DEST_HEADERS.caseName,
     DEST_HEADERS.email,
     DEST_HEADERS.phone,
     DEST_HEADERS.hp,
@@ -86,7 +84,7 @@ const AUTO_HEADERS = {
     sentAt: '送信日時',
     logMessage: 'logMessage',
     phone: '電話番号',
-    name: '代表名',
+    caseName: '案件名',
     urlCandidates: ['HP', '媒体1', '媒体2', '媒体3']
 };
 
@@ -247,7 +245,6 @@ function importTodayTargets_(params) {
             ? getValue_(row, sourceHeaderMap, SOURCE_HEADERS.caseName)
             : '';
 
-        const representativeName = getValue_(row, sourceHeaderMap, SOURCE_HEADERS.name);
         const email = getValue_(row, sourceHeaderMap, SOURCE_HEADERS.email);
         const phone = getValue_(row, sourceHeaderMap, SOURCE_HEADERS.phone);
         const hp = getValue_(row, sourceHeaderMap, SOURCE_HEADERS.hp);
@@ -263,14 +260,14 @@ function importTodayTargets_(params) {
         });
 
         const prefilledFormUrl = buildPrefilledFormUrl_(
-            representativeName,
+            caseName,
             selectedUrl,
             phone
         );
 
         const exportRowObject = {
             [DEST_HEADERS.date]: dateValue,
-            [DEST_HEADERS.name]: representativeName,
+            [DEST_HEADERS.caseName]: caseName,
             [DEST_HEADERS.email]: email,
             [DEST_HEADERS.phone]: phone,
             [DEST_HEADERS.hp]: hp,
@@ -339,7 +336,7 @@ function getTargets_(params) {
         const rowNumber = index + 2;
 
         const sentAt = getValue_(row, headerMap, AUTO_HEADERS.sentAt);
-        const representativeName = getValue_(row, headerMap, AUTO_HEADERS.name);
+        const caseName = getValue_(row, headerMap, AUTO_HEADERS.caseName);
         const phone = getValue_(row, headerMap, AUTO_HEADERS.phone);
         const selectedUrl = pickUrlByPriority_(row, headerMap);
 
@@ -347,7 +344,7 @@ function getTargets_(params) {
             return;
         }
 
-        if (!representativeName || !phone || !selectedUrl) {
+        if (!caseName || !phone || !selectedUrl) {
             return;
         }
 
@@ -365,7 +362,7 @@ function getTargets_(params) {
                     type: 'textbox',
                     index: 0,
                     name: 'name',
-                    value: representativeName
+                    value: caseName
                 },
                 {
                     type: 'textbox',
@@ -568,7 +565,7 @@ function validateTargetHeaders_(headerMap) {
         AUTO_HEADERS.sentAt,
         AUTO_HEADERS.logMessage,
         AUTO_HEADERS.phone,
-        AUTO_HEADERS.name,
+        AUTO_HEADERS.caseName,
         ...AUTO_HEADERS.urlCandidates
     ];
 
@@ -620,7 +617,7 @@ function pickUrlFromObjectByPriority_(data) {
     return '';
 }
 
-function buildPrefilledFormUrl_(representativeName, selectedUrl, phone) {
+function buildPrefilledFormUrl_(caseName, selectedUrl, phone) {
     const params = [];
 
     params.push('usp=pp_url');
@@ -628,7 +625,7 @@ function buildPrefilledFormUrl_(representativeName, selectedUrl, phone) {
     params.push(
         encodeURIComponent(FORM_PREFILL_ENTRIES.name) +
         '=' +
-        encodeURIComponent(String(representativeName || ''))
+        encodeURIComponent(String(caseName || ''))
     );
 
     params.push(
