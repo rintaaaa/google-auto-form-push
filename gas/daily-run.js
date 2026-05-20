@@ -26,6 +26,17 @@ const FORM_PREFILL_ENTRIES = {
 };
 /* GAS_CONFIG_END */
 
+const IMPORT_SCAN_LIMIT = 100;
+const TARGET_BUSINESS_DAYS = [5, 6];
+
+// Apps Script の CalendarApp で取得しやすい日本の祝日カレンダーID
+const JAPAN_HOLIDAY_CALENDAR_ID = 'ja.japanese#holiday@group.v.calendar.google.com';
+
+// 1回のGAS実行中だけ使う祝日判定キャッシュ
+const HOLIDAY_CACHE = {};
+
+const PREFILL_LINK_HEADER = 'Form事前入力リンク';
+
 const SOURCE_HEADERS = {
     date: '日付',
     caseId: '案件ID',

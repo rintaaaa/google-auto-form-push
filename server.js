@@ -6,12 +6,26 @@ const app = express();
 const PORT = 8006;
 const API_KEY = 'test';
 const USER_DATA_DIR = './user-data';
+const DEFAULT_RPA_HEADLESS = true;
+const RPA_HEADLESS = getHeadlessFromArgs(DEFAULT_RPA_HEADLESS);
 
 let persistentContext = null;
 let contextStarting = null;
 let loginContext = null;
 
 app.use(express.json({ limit: '1mb' }));
+
+function getHeadlessFromArgs(defaultValue) {
+    if (process.argv.includes('--headed')) {
+        return false;
+    }
+
+    if (process.argv.includes('--headless')) {
+        return true;
+    }
+
+    return defaultValue;
+}
 
 // アクセスログ
 app.use((req, res, next) => {
@@ -67,7 +81,7 @@ async function getPersistentContext() {
     }
 
     contextStarting = chromium.launchPersistentContext(USER_DATA_DIR, {
-        headless: false,
+        headless: RPA_HEADLESS,
         viewport: { width: 1280, height: 900 }
     });
 
@@ -178,6 +192,29 @@ app.post('/close-login', async (req, res) => {
 });
 
 // 常駐ブラウザを明示的に閉じる
+app.post('/open-context', async (req, res) => {
+    try {
+        if (loginContext) {
+            throw new Error('Login browser is open. Please close login browser first.');
+        }
+
+        const context = await getPersistentContext();
+
+        res.json({
+            ok: true,
+            message: 'persistent context opened',
+            pages: context.pages().length
+        });
+    } catch (e) {
+        console.error(e);
+
+        res.status(500).json({
+            ok: false,
+            error: e.message
+        });
+    }
+});
+
 app.post('/close-context', async (req, res) => {
     await closePersistentContext();
 
@@ -299,16 +336,6 @@ async function detectSubmitResult(page) {
     };
 }
 
-async function getReusablePage(context) {
-    const blankPage = context.pages().find(page => page.url() === 'about:blank');
-
-    if (blankPage) {
-        return blankPage;
-    }
-
-    return context.newPage();
-}
-
 async function submitOnePayload(context, payload) {
     let page = null;
 
@@ -317,8 +344,7 @@ async function submitOnePayload(context, payload) {
             throw new Error('formUrl is required');
         }
 
-        // 1件目は起動時の about:blank タブを再利用する
-        page = await getReusablePage(context);
+        page = await context.newPage();
 
         await page.goto(payload.formUrl, {
             waitUntil: 'networkidle'
@@ -346,8 +372,6 @@ async function submitOnePayload(context, payload) {
 
         const title = await page.title();
 
-        // 成功時は page.close() しない
-        // 送信完了タブは処理中は残し、全件完了後に context.close() でブラウザごと閉じる
         return {
             ok: true,
             message: 'form submitted',
@@ -359,20 +383,19 @@ async function submitOnePayload(context, payload) {
     } catch (e) {
         console.error(e);
 
-        // エラー時だけ途中ページを閉じる
-        if (page) {
-            try {
-                await page.close();
-            } catch (closeError) {
-                console.error('failed to close error page:', closeError);
-            }
-        }
-
         return {
             ok: false,
             error: e.message,
             rowNumber: payload.rowNumber
         };
+    } finally {
+        if (page) {
+            try {
+                await page.close();
+            } catch (closeError) {
+                console.error('failed to close page:', closeError);
+            }
+        }
     }
 }
 
@@ -380,6 +403,7 @@ async function submitOnePayload(context, payload) {
 // 送信後はブラウザごと閉じる。
 app.post('/fill-form', async (req, res) => {
     const payload = req.body;
+    const keepContextAlive = !!(payload && payload.keepContextAlive);
 
     console.log('fill-form payload:', JSON.stringify(payload, null, 2));
 
@@ -408,7 +432,9 @@ app.post('/fill-form', async (req, res) => {
             rowNumber: payload && payload.rowNumber
         });
     } finally {
-        await closePersistentContext();
+        if (!keepContextAlive) {
+            await closePersistentContext();
+        }
     }
 });
 

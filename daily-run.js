@@ -8,6 +8,7 @@ const DAILY_CONFIG_PATH = path.join(ROOT_DIR, 'daily-config.json');
 const USER_DATA_DIR = path.join(ROOT_DIR, 'user-data');
 
 const PAGE_GOTO_TIMEOUT_MS = 180000;
+const DEFAULT_RPA_HEADLESS = true;
 
 function loadJson(filePath) {
     if (!fs.existsSync(filePath)) {
@@ -71,6 +72,18 @@ function getDryRunFromArgsOrConfig(config) {
     }
 
     return Boolean(config.dryRun);
+}
+
+function getHeadlessFromArgs(defaultValue) {
+    if (process.argv.includes('--headed')) {
+        return false;
+    }
+
+    if (process.argv.includes('--headless')) {
+        return true;
+    }
+
+    return defaultValue;
 }
 
 function getFieldValue(payload, fieldName) {
@@ -385,7 +398,8 @@ async function main() {
     const runOptions = {
         targetDate: getTargetDateFromArgsOrConfig(config),
         sheetName: getSheetNameFromArgsOrConfig(config),
-        dryRun: getDryRunFromArgsOrConfig(config)
+        dryRun: getDryRunFromArgsOrConfig(config),
+        headless: getHeadlessFromArgs(DEFAULT_RPA_HEADLESS)
     };
 
     if (runOptions.targetDate) {
@@ -400,8 +414,10 @@ async function main() {
         console.log('Mode: DRY RUN');
     }
 
+    console.log(`Browser mode: ${runOptions.headless ? 'headless' : 'headed'}`);
+
     const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
-        headless: false,
+        headless: runOptions.headless,
         viewport: {
             width: 1280,
             height: 900

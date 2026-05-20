@@ -1,15 +1,6 @@
 /* GAS_CONFIG_START */
 const FORM_URL = "https://docs.google.com/forms/d/e/REPLACE_WITH_YOUR_FORM_ID/viewform";
 
-const SENT_AT_HEADER = '送信日時';
-const LOG_MESSAGE_HEADER = 'logMessage';
-
-const NAME_HEADER = '代表名';
-const PHONE_HEADER = '電話番号';
-const PREFILL_LINK_HEADER = 'Form事前入力リンク';
-
-const URL_CANDIDATE_HEADERS = ['HP', '媒体1', '媒体2', '媒体3'];
-
 // TODO: Google Form の「事前入力したリンクを取得」から実際の entry ID に置き換えてください。
 // Form のテキストボックス順:
 // 1. 代表名
@@ -21,6 +12,15 @@ const FORM_PREFILL_ENTRIES = {
     "phone": "entry.555555555"
 };
 /* GAS_CONFIG_END */
+
+const SENT_AT_HEADER = '送信日時';
+const LOG_MESSAGE_HEADER = 'logMessage';
+
+const NAME_HEADER = '代表名';
+const PHONE_HEADER = '電話番号';
+const PREFILL_LINK_HEADER = 'Form事前入力リンク';
+
+const URL_CANDIDATE_HEADERS = ['HP', '媒体1', '媒体2', '媒体3'];
 
 function onOpen() {
     SpreadsheetApp.getUi()

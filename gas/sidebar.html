@@ -58,6 +58,18 @@
             result.textContent = text;
         }
 
+        async function closeContextSilently() {
+            try {
+                await fetch(LOCAL_RPA_BASE_URL + '/close-context', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': API_KEY
+                    }
+                });
+            } catch (e) { }
+        }
+
         function initializePanel() {
             document.getElementById('panelTitle').textContent = PANEL_TITLE;
 
@@ -164,72 +176,91 @@
             google.script.run
                 .withSuccessHandler(async function (payloads) {
                     show('送信対象: ' + payloads.length + '件\n\n送信開始...');
-
-                    for (const payload of payloads) {
-                        google.script.run.updateRowResult(
-                            payload.rowNumber,
-                            'RUNNING',
-                            '送信待機中'
-                        );
-                    }
+                    let successCount = 0;
+                    let errorCount = 0;
 
                     try {
-                        const res = await fetch(LOCAL_RPA_BASE_URL + '/fill-forms', {
+                        const openRes = await fetch(LOCAL_RPA_BASE_URL + '/open-context', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'x-api-key': API_KEY
-                            },
-                            body: JSON.stringify({
-                                payloads: payloads
-                            })
+                            }
                         });
 
-                        const text = await res.text();
-
-                        let json = null;
+                        const openText = await openRes.text();
+                        let openJson = null;
 
                         try {
-                            json = JSON.parse(text);
+                            openJson = JSON.parse(openText);
                         } catch (e) { }
 
-                        if (!json || !Array.isArray(json.results)) {
-                            show('送信結果の解析に失敗しました。\n\nstatus: ' + res.status + '\n\n' + text);
+                        if (!openRes.ok || !openJson || !openJson.ok) {
+                            throw new Error(openText || 'Failed to open browser context');
+                        }
 
-                            for (const payload of payloads) {
+                        for (let i = 0; i < payloads.length; i++) {
+                            const payload = payloads[i];
+
+                            show(
+                                '送信対象: ' + payloads.length + '件\n' +
+                                '処理中: ' + (i + 1) + '/' + payloads.length
+                            );
+
+                            const res = await fetch(LOCAL_RPA_BASE_URL + '/fill-form', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'x-api-key': API_KEY
+                                },
+                                body: JSON.stringify({
+                                    ...payload,
+                                    keepContextAlive: true
+                                })
+                            });
+
+                            const text = await res.text();
+                            let json = null;
+
+                            try {
+                                json = JSON.parse(text);
+                            } catch (e) { }
+
+                            if (!json) {
                                 google.script.run.updateRowResult(
                                     payload.rowNumber,
                                     'ERROR',
                                     text
                                 );
+                                errorCount++;
+                                continue;
                             }
 
-                            return;
-                        }
-
-                        for (const result of json.results) {
-                            if (result.ok) {
+                            if (res.ok && json.ok) {
                                 google.script.run.updateRowResult(
-                                    result.rowNumber,
+                                    payload.rowNumber,
                                     'DONE',
-                                    result.message || 'form submitted'
+                                    json.message || 'form submitted'
                                 );
+                                successCount++;
                             } else {
                                 google.script.run.updateRowResult(
-                                    result.rowNumber,
+                                    payload.rowNumber,
                                     'ERROR',
-                                    result.error || 'Unknown error'
+                                    json.error || text || 'Unknown error'
                                 );
+                                errorCount++;
                             }
                         }
 
                         show(
                             '完了: ' +
-                            json.successCount +
+                            successCount +
                             '件成功 / ' +
-                            json.errorCount +
+                            errorCount +
                             '件失敗'
                         );
+
                     } catch (e) {
                         show(
                             '送信に失敗しました。\n\n' +
@@ -244,6 +275,8 @@
                                 e.message
                             );
                         }
+                    } finally {
+                        await closeContextSilently();
                     }
                 })
                 .withFailureHandler(function (error) {
